@@ -1,14 +1,21 @@
 from fastapi import FastAPI, Request
 from app.db import get_master_conn, get_slave_conn
+from fastapi.middleware.cors import CORSMiddleware
 
 app = FastAPI()
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 @app.get("/")
 def home():
     return "Welcome to the Project"
 
 #Create Operation
-@app.post("/posts")
+@app.post("/create-posts")
 async def create_post(request: Request):
     data = await request.json()
     title = data.get("title")
@@ -24,7 +31,7 @@ async def create_post(request: Request):
     return {"message": "Post created"}
 
 #Read Operation
-@app.get("/posts")
+@app.get("/read-posts")
 async def list_posts():
     conn = get_slave_conn()
     cur = conn.cursor()
@@ -36,7 +43,7 @@ async def list_posts():
     return [{"id": p[0], "title": p[1], "content": p[2]} for p in posts]
 
 #Update operation
-@app.put("/posts/{post_id}")
+@app.put("/update-posts/{post_id}")
 async def update_post(post_id: int, request: Request):
     data = await request.json()
     title = data.get("title")
@@ -52,7 +59,7 @@ async def update_post(post_id: int, request: Request):
     return {"message": "Post updated"}
 
 #Delete Operation
-@app.delete("/posts/{post_id}")
+@app.delete("/delete-posts/{post_id}")
 async def delete_post(post_id: int):
     conn = get_master_conn()
     cur = conn.cursor()
@@ -64,7 +71,7 @@ async def delete_post(post_id: int):
     return {"message": "Post deleted"}
     
 # Read Operation by id
-@app.get("/posts/{post_id}")
+@app.get("/read-posts/{post_id}")
 async def get_post_by_id(post_id: int):
     conn = get_slave_conn()
     cur = conn.cursor()
