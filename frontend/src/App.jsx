@@ -7,8 +7,9 @@ function App() {
   const [posts, setPosts] = useState([]);
   const [form, setForm] = useState({ title: "", content: "" });
   const [editingId, setEditingId] = useState(null);
-  const [feedback, setFeedback] = useState("");
   const [showForm, setShowForm] = useState(false);
+  const [feedback, setFeedback] = useState(null);
+
 
   const fetchPosts = async () => {
     try {
@@ -28,11 +29,12 @@ function App() {
     try {
       if (editingId) {
         await axios.put(`${API_BASE}/update-posts/${editingId}`, form);
-        setFeedback("Post updated successfully.");
+        setFeedback({ text: "Post updated.", type: "warning" });
       } else {
         await axios.post(`${API_BASE}/create-posts`, form);
-        setFeedback("Post created successfully.");
+        setFeedback({ text: "Post created.", type: "success" });
       }
+
       setForm({ title: "", content: "" });
       setEditingId(null);
       setShowForm(false);
@@ -52,14 +54,13 @@ function App() {
   };
 
   const handleDelete = async (id) => {
-    if (!window.confirm("Are you sure you want to delete this post?")) return;
     try {
       await axios.delete(`${API_BASE}/delete-posts/${id}`);
       fetchPosts();
-      setFeedback("Post deleted.");
+      setFeedback({ text: "Post deleted.", type: "error" });
     } catch (err) {
       console.error("Error deleting post", err);
-      setFeedback("Error deleting post.");
+      setFeedback({ text: "Post deleted.", type: "error" });
     } finally {
       setTimeout(() => setFeedback(""), 2000);
     }
@@ -86,10 +87,19 @@ function App() {
 
       {/* Feedback */}
       {feedback && (
-        <div className="mt-4 text-center text-green-700 bg-green-100 border border-green-300 px-4 py-2 rounded max-w-md mx-auto z-10 relative">
-          {feedback}
+        <div
+          className={`mt-4 text-center px-4 py-2 rounded max-w-md mx-auto z-10 relative
+      ${feedback.type === "error"
+              ? "text-red-700 bg-red-100 border border-red-300"
+              : feedback.type === "warning"
+                ? "text-yellow-800 bg-yellow-100 border border-yellow-300"
+                : "text-green-700 bg-green-100 border border-green-300"
+            }`}
+        >
+          {feedback.text}
         </div>
       )}
+
 
       {/* Main Content (always visible) */}
       <main className="p-6 max-w-6xl mx-auto relative z-0">
