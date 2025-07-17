@@ -69,7 +69,7 @@ function App() {
   return (
     <div className="min-h-screen bg-gray-100 relative">
       {/* Navbar */}
-      <nav className="bg-blue-700 text-white px-6 py-4 shadow z-10 relative">
+      <nav className="bg-blue-700 text-white px-6 py-4 shadow fixed top-0 w-full z-50">
         <div className="max-w-6xl mx-auto flex justify-between items-center">
           <h1 className="text-2xl font-bold">📝 Blog Manager</h1>
           <button
@@ -137,6 +137,11 @@ function App() {
           </div>
         )}
       </main>
+
+      <footer className="bg-gray-100 text-center text-gray-600 text-sm py-4 mt-12 border-t">
+        © {new Date().getFullYear()} Blog Manager. Built with ❤️ using FastAPI & React.
+      </footer>
+
 
       {/* Overlay + Post Form */}
       {showForm && (
