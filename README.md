@@ -209,9 +209,6 @@ The backend is organized into three route groups:
 - ImageKit account
 - Google Gemini API key
 
-## Live Demo
-
-https://blog-website-mern-x6jv.vercel.app/
 
 ## Status
 
