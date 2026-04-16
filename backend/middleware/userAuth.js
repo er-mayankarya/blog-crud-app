@@ -15,7 +15,7 @@ const userAuth = (req, res, next) => {
 
         const decoded = jwt.verify(token, process.env.JWT_SECRET);
 
-        if (decoded.role !== 'user' || !decoded.userId) {
+        if (!decoded.userId) {
             return res.status(403).json({ success: false, message: "User access required" });
         }
 

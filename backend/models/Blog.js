@@ -1,7 +1,7 @@
 import mongoose from "mongoose";
 
 const blogSchema = new mongoose.Schema({
-    writer: {type: mongoose.Schema.Types.ObjectId, ref: 'writer'},
+    writer: {type: mongoose.Schema.Types.ObjectId, ref: 'user'},
     writerName: {type: String},
     writerUsername: {type: String},
     title: {type: String, required: true},

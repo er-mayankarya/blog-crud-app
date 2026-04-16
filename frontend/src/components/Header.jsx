@@ -4,7 +4,7 @@ import { useAppContext } from '../context/useAppContext'
 import { formatDate, getFeaturedBlog, normalizeBlog } from '../utils/homeDisplay'
 
 const Header = ({ containerClassName = '' }) => {
-  const { blogs, input, setInput, navigate } = useAppContext()
+  const { blogs, input, setInput, navigate, user, canAccessWriterDashboard } = useAppContext()
 
   const normalizedBlogs = useMemo(() => blogs.map(normalizeBlog), [blogs])
   const featuredBlog = useMemo(() => getFeaturedBlog(normalizedBlogs), [normalizedBlogs])
@@ -127,10 +127,10 @@ const Header = ({ containerClassName = '' }) => {
                 </p>
                 <button
                   type="button"
-                  onClick={() => navigate('/writer')}
+                  onClick={() => navigate(user ? '/writer' : '/auth')}
                   className="mt-6 rounded-full bg-[#702ae1] px-6 py-3 font-semibold text-white"
                 >
-                  Open writer dashboard
+                  {canAccessWriterDashboard ? 'Open Dashboard' : user ? 'Become an Author' : 'Create Account'}
                 </button>
               </div>
             )}

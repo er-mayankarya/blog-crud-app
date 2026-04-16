@@ -15,11 +15,12 @@ const auth = (req, res, next) => {
 
         const decoded = jwt.verify(token, process.env.JWT_SECRET);
 
-        if (decoded.role !== 'writer' || !decoded.writerId) {
-            return res.status(403).json({ success: false, message: "Writer access required" });
+        if (!decoded.userId || decoded.accountType !== 'author') {
+            return res.status(403).json({ success: false, message: "Author access required" });
         }
 
         req.writer = decoded;
+        req.user = decoded;
         next();
     } catch (error) {
         res.status(401).json({ success: false, message: "Unauthorized access" });

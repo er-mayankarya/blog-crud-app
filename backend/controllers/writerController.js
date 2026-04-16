@@ -2,7 +2,6 @@ import crypto from 'crypto';
 import jwt from 'jsonwebtoken';
 import Blog from '../models/Blog.js';
 import Comment from '../models/Comment.js';
-import Writer from '../models/Writer.js';
 import User from '../models/User.js';
 
 const hashPassword = (password) => {
@@ -17,18 +16,33 @@ const verifyPassword = (password, storedPassword) => {
     return crypto.timingSafeEqual(Buffer.from(hash, 'hex'), Buffer.from(originalHash, 'hex'));
 };
 
+const isAuthorAccount = (user) => user?.accountType === 'author';
+
 const createWriterToken = (writer) => jwt.sign(
-    { writerId: writer._id, name: writer.name, username: writer.username, email: writer.email, phone: writer.phone, role: 'writer' },
+    {
+        userId: writer._id,
+        writerId: writer._id,
+        name: writer.name,
+        username: writer.username || null,
+        email: writer.email,
+        mobile: writer.mobile,
+        accountType: writer.accountType,
+        isAuthor: isAuthorAccount(writer)
+    },
     process.env.JWT_SECRET
 );
 
 const sanitizeWriter = (writer) => ({
     _id: writer._id,
     name: writer.name,
-    username: writer.username,
+    username: writer.username || null,
     email: writer.email,
-    phone: writer.phone,
-    description: writer.description,
+    phone: writer.mobile,
+    mobile: writer.mobile,
+    description: writer.description || '',
+    accountType: writer.accountType,
+    isAuthor: isAuthorAccount(writer),
+    authorSince: writer.authorSince || null,
     createdAt: writer.createdAt
 });
 
@@ -48,20 +62,22 @@ export const registerWriter = async (req, res) => {
         const normalizedPhone = phone.trim();
         const normalizedUsername = username.trim().toLowerCase();
 
-        const existingWriter = await Writer.findOne({
-            $or: [{ email: normalizedEmail }, { phone: normalizedPhone }, { username: normalizedUsername }]
+        const existingWriter = await User.findOne({
+            $or: [{ email: normalizedEmail }, { mobile: normalizedPhone }, { username: normalizedUsername }]
         });
 
         if (existingWriter) {
             return res.json({ success: false, message: "Writer already exists with this email, phone, or username" });
         }
 
-        const writer = await Writer.create({
+        const writer = await User.create({
             name: name.trim(),
             username: normalizedUsername,
             email: normalizedEmail,
-            phone: normalizedPhone,
+            mobile: normalizedPhone,
             description: description.trim(),
+            accountType: 'author',
+            authorSince: new Date(),
             password: hashPassword(password)
         });
 
@@ -87,10 +103,11 @@ export const loginWriter = async (req, res) => {
         }
 
         const normalizedLogin = login.trim().toLowerCase();
-        const writer = await Writer.findOne({
+        const writer = await User.findOne({
+            accountType: 'author',
             $or: [
                 { email: normalizedLogin },
-                { phone: login.trim() },
+                { mobile: login.trim() },
                 { username: normalizedLogin }
             ]
         });
@@ -114,7 +131,7 @@ export const loginWriter = async (req, res) => {
 
 export const getWriterProfile = async (req, res) => {
     try {
-        const writer = await Writer.findById(req.writer.writerId).select('-password');
+        const writer = await User.findOne({ _id: req.writer.writerId, accountType: 'author' }).select('-password');
 
         if (!writer) {
             return res.status(404).json({ success: false, message: "Writer not found" });
@@ -151,7 +168,7 @@ export const updateWriterPassword = async (req, res) => {
             return res.json({ success: false, message: "New password must be at least 6 characters long" });
         }
 
-        const writer = await Writer.findById(req.writer.writerId);
+        const writer = await User.findOne({ _id: req.writer.writerId, accountType: 'author' });
 
         if (!writer) {
             return res.status(404).json({ success: false, message: "Writer not found" });
@@ -178,9 +195,10 @@ export const verifyWriterResetIdentity = async (req, res) => {
             return res.json({ success: false, message: "Email and phone are required" });
         }
 
-        const writer = await Writer.findOne({
+        const writer = await User.findOne({
+            accountType: 'author',
             email: email.trim().toLowerCase(),
-            phone: phone.trim()
+            mobile: phone.trim()
         });
 
         if (!writer) {
@@ -205,9 +223,10 @@ export const resetWriterPassword = async (req, res) => {
             return res.json({ success: false, message: "Password must be at least 6 characters long" });
         }
 
-        const writer = await Writer.findOne({
+        const writer = await User.findOne({
+            accountType: 'author',
             email: email.trim().toLowerCase(),
-            phone: phone.trim()
+            mobile: phone.trim()
         });
 
         if (!writer) {
@@ -273,8 +292,8 @@ export const getPublicWriterProfile = async (req, res) => {
         const { username, writerId } = req.params;
 
         const writer = username
-            ? await Writer.findOne({ username: username.trim().toLowerCase() }).select('-password')
-            : await Writer.findById(writerId).select('-password');
+            ? await User.findOne({ username: username.trim().toLowerCase(), accountType: 'author' }).select('-password')
+            : await User.findOne({ _id: writerId, accountType: 'author' }).select('-password');
 
         if (!writer) {
             return res.status(404).json({ success: false, message: 'Writer not found' });
@@ -335,7 +354,7 @@ export const getPublicWriterDirectory = async (req, res) => {
             }
             : {};
 
-        const writers = await Writer.find(query).select('-password').sort({ createdAt: -1 }).lean();
+        const writers = await User.find({ accountType: 'author', ...query }).select('-password').sort({ createdAt: -1 }).lean();
 
         const writerIds = writers.map((writer) => writer._id);
         const blogs = await Blog.find({ writer: { $in: writerIds }, isPublished: true }).lean();

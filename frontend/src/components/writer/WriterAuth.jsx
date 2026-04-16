@@ -5,7 +5,7 @@ import { useAppContext } from '../../context/useAppContext'
 import { validateWriterAuth, validateWriterReset } from '../../utils/authValidation'
 
 const WriterAuth = () => {
-  const { registerWriter, loginWriter, verifyWriterReset, resetWriterPassword } = useAppContext()
+  const { registerWriter, loginWriter, verifyWriterReset, resetWriterPassword, becomeAuthor, user, userToken } = useAppContext()
   const [mode, setMode] = useState('login')
   const [resetStep, setResetStep] = useState(1)
   const [isSubmitting, setIsSubmitting] = useState(false)
@@ -20,12 +20,13 @@ const WriterAuth = () => {
     password: '',
     resetEmail: '',
     resetPhone: '',
-    newPassword: ''
+    newPassword: '',
+    authorConsent: false
   })
 
   const updateField = (event) => {
-    const { name, value } = event.target
-    setFormData((current) => ({ ...current, [name]: value }))
+    const { name, value, type, checked } = event.target
+    setFormData((current) => ({ ...current, [name]: type === 'checkbox' ? checked : value }))
     setErrors((current) => {
       if (!current[name]) {
         return current
@@ -164,12 +165,122 @@ const WriterAuth = () => {
     }
   }
 
+  const handleBecomeAuthor = async (event) => {
+    event.preventDefault()
+    const validationErrors = {}
+
+    if (!formData.authorConsent) {
+      validationErrors.authorConsent = 'You must consent before becoming an author'
+    }
+
+    if (Object.keys(validationErrors).length > 0) {
+      setErrors(validationErrors)
+      toast.error('Please fix the highlighted fields')
+      return
+    }
+
+    setIsSubmitting(true)
+
+    try {
+      await becomeAuthor({
+        description: formData.description.trim(),
+        consent: formData.authorConsent
+      })
+      toast.success('Your account is now an author account')
+    } catch (error) {
+      toast.error(error.message)
+    } finally {
+      setIsSubmitting(false)
+    }
+  }
+
   return (
     <div className="ethereal-shell flex min-h-screen items-center justify-center overflow-x-hidden bg-[#f6f6ff] px-4 py-10 sm:px-6 lg:px-10">
       <div className="ethereal-orb ethereal-orb-primary" />
       <div className="ethereal-orb ethereal-orb-secondary" />
 
-      {mode === 'forgot' ? (
+      {userToken && user && !user.isAuthor ? (
+        <div className="relative z-10 w-full max-w-[1040px] overflow-hidden rounded-[30px] bg-white shadow-[0_30px_80px_rgba(39,46,66,0.12)]">
+          <div className="grid min-h-[620px] lg:grid-cols-2">
+            <div className="flex items-center justify-center px-8 py-12 sm:px-14">
+              <form onSubmit={handleBecomeAuthor} className="mx-auto flex w-full max-w-[360px] flex-col">
+                <div className="inline-flex items-center gap-2 text-sm font-bold uppercase tracking-[0.24em] text-[#702ae1]">
+                  <FileText className="h-4 w-4" />
+                  Upgrade account
+                </div>
+                <h1 className="mt-4 font-[Manrope] text-4xl font-extrabold tracking-[-0.05em] text-slate-900">
+                  Become an author
+                </h1>
+                <p className="mt-4 text-sm leading-7 text-slate-500">
+                  Keep your current account and unlock publishing while keeping the same username you already use.
+                </p>
+
+                <div className="mt-6 grid gap-3">
+                  <div className="rounded-xl bg-[#f3f1ff] px-4 py-3 text-sm text-slate-600">
+                    {user.name}
+                  </div>
+                  <div className="rounded-xl bg-[#f3f1ff] px-4 py-3 text-sm text-slate-600">
+                    @{user.username}
+                  </div>
+                  <div className="rounded-xl bg-[#f3f1ff] px-4 py-3 text-sm text-slate-600">
+                    {user.email}
+                  </div>
+                  <div className="rounded-xl bg-[#f3f1ff] px-4 py-3 text-sm text-slate-600">
+                    {user.mobile}
+                  </div>
+
+                  <div className="relative">
+                    <FileText className="pointer-events-none absolute left-4 top-4 h-4 w-4 text-slate-400" />
+                    <textarea
+                      name="description"
+                      value={formData.description}
+                      onChange={updateField}
+                      placeholder="Tell readers what you write about (optional)"
+                      className={`h-28 w-full rounded-xl bg-[#f3f1ff] py-3 pl-11 pr-4 text-sm text-slate-700 outline-none transition placeholder:text-slate-400 focus:shadow-[0_0_0_3px_rgba(112,42,225,0.14)] ${
+                        errors.description ? 'border border-red-400 focus:shadow-[0_0_0_3px_rgba(248,113,113,0.2)]' : ''
+                      }`}
+                    />
+                  </div>
+                  {errors.description ? <p className="text-sm text-red-500">{errors.description}</p> : null}
+
+                  <label className={`flex items-start gap-3 rounded-xl px-4 py-4 text-sm text-slate-600 ${errors.authorConsent ? 'border border-red-400 bg-red-50/60' : 'bg-[#f3f1ff]'}`}>
+                    <input
+                      name="authorConsent"
+                      type="checkbox"
+                      checked={formData.authorConsent}
+                      onChange={updateField}
+                      className="mt-1 h-4 w-4 accent-[#702ae1]"
+                    />
+                    <span>
+                      I understand this account will be upgraded to author access, and I want to unlock the publishing dashboard on this same account.
+                    </span>
+                  </label>
+                  {errors.authorConsent ? <p className="text-sm text-red-500">{errors.authorConsent}</p> : null}
+                </div>
+
+                <button
+                  disabled={isSubmitting}
+                  type="submit"
+                  className="mt-7 w-full rounded-xl bg-[linear-gradient(135deg,#702ae1,#b28cff)] px-4 py-3 text-sm font-bold uppercase tracking-[0.14em] text-white shadow-[0_16px_34px_rgba(112,42,225,0.24)] transition hover:opacity-95 disabled:opacity-60"
+                >
+                  {isSubmitting ? 'Upgrading...' : 'Become Author'}
+                </button>
+              </form>
+            </div>
+
+            <div className="flex items-center justify-center bg-[linear-gradient(135deg,#702ae1,#57d2d0)] px-8 py-12 text-white sm:px-14">
+              <div className="max-w-[320px] text-center">
+                <h2 className="font-[Manrope] text-4xl font-extrabold leading-tight tracking-[-0.05em]">
+                  One account, two experiences
+                </h2>
+                <p className="mt-5 text-base leading-8 text-white/85">
+                  Stay signed in as a reader and unlock the author dashboard on the same profile.
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+      ) : mode === 'forgot' ? (
         <div className="relative z-10 w-full max-w-[1100px] overflow-hidden rounded-[30px] bg-white shadow-[0_30px_80px_rgba(39,46,66,0.12)]">
           <div className="grid min-h-[580px] lg:grid-cols-2">
             <div className="flex items-center justify-center px-8 py-12 sm:px-14">

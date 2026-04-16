@@ -4,7 +4,7 @@ import { useLocation } from 'react-router-dom'
 import { useAppContext } from '../context/useAppContext'
 
 const Navbar = ({ containerClassName = '' }) => {
-  const { navigate, writerToken, user } = useAppContext()
+  const { navigate, canAccessWriterDashboard, user } = useAppContext()
   const location = useLocation()
   const [isSidebarOpen, setIsSidebarOpen] = useState(false)
 
@@ -66,35 +66,75 @@ const Navbar = ({ containerClassName = '' }) => {
               About
             </button>
             <button type="button" onClick={() => navigate('/writers')} className="ethereal-nav-link">
-              Writer
+              Authors
             </button>
           </div>
 
           <div className="hidden items-center gap-2 sm:gap-3 lg:flex">
-            <button
-              type="button"
-              onClick={() => navigate(user ? '/profile' : '/auth')}
-              className="rounded-full bg-white/70 px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-white"
-            >
-              {user ? user.name : 'Login'}
-            </button>
-            <button
-              type="button"
-              onClick={() => navigate('/writer')}
-              className="rounded-full bg-[linear-gradient(135deg,#702ae1,#b28cff)] px-4 py-2 text-sm font-bold text-white shadow-[0_20px_40px_rgba(39,46,66,0.12)] transition hover:-translate-y-0.5 sm:px-6"
-            >
-              {writerToken ? 'Dashboard' : 'Writer'}
-            </button>
+            {user ? (
+              <>
+                <button
+                  type="button"
+                  onClick={() => navigate('/profile')}
+                  className="rounded-full bg-white/70 px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-white"
+                >
+                  {user.name}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => navigate('/writer')}
+                  className="rounded-full bg-[linear-gradient(135deg,#702ae1,#b28cff)] px-4 py-2 text-sm font-bold text-white shadow-[0_20px_40px_rgba(39,46,66,0.12)] transition hover:-translate-y-0.5 sm:px-6"
+                >
+                  {canAccessWriterDashboard ? 'Dashboard' : 'Become Author'}
+                </button>
+              </>
+            ) : (
+              <>
+                <button
+                  type="button"
+                  onClick={() => navigate('/auth', { state: { mode: 'login' } })}
+                  className="cursor-pointer rounded-full bg-white/70 px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-white"
+                >
+                  Sign In
+                </button>
+                <button
+                  type="button"
+                  onClick={() => navigate('/auth', { state: { mode: 'signup' } })}
+                  className="cursor-pointer rounded-full bg-[linear-gradient(135deg,#702ae1,#b28cff)] px-4 py-2 text-sm font-bold text-white shadow-[0_20px_40px_rgba(39,46,66,0.12)] transition hover:-translate-y-0.5 sm:px-6"
+                >
+                  Create Account
+                </button>
+              </>
+            )}
           </div>
 
           <div className="lg:hidden">
-            <button
-              type="button"
-              onClick={() => handleNavigate(user ? '/profile' : '/auth')}
-              className="rounded-full bg-white/75 px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-white"
-            >
-              {user ? 'Profile' : 'Login'}
-            </button>
+            {user ? (
+              <button
+                type="button"
+                onClick={() => handleNavigate('/profile')}
+                className="rounded-full bg-white/75 px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-white"
+              >
+                Profile
+              </button>
+            ) : (
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => handleNavigate('/auth', { state: { mode: 'login' } })}
+                  className="cursor-pointer rounded-full bg-white/75 px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-white"
+                >
+                  Sign In
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleNavigate('/auth', { state: { mode: 'signup' } })}
+                  className="cursor-pointer rounded-full bg-[linear-gradient(135deg,#702ae1,#b28cff)] px-4 py-2 text-sm font-bold text-white shadow-[0_20px_40px_rgba(39,46,66,0.12)] transition hover:-translate-y-0.5"
+                >
+                  Create Account
+                </button>
+              </div>
+            )}
           </div>
         </div>
       </nav>
@@ -168,32 +208,62 @@ const Navbar = ({ containerClassName = '' }) => {
               onClick={() => handleNavigate('/writers')}
               className="flex w-full items-center justify-between rounded-2xl bg-[#f7f8ff] px-4 py-3 text-left text-sm font-semibold text-slate-700 transition hover:bg-[#f3f1ff] hover:text-[#702ae1]"
             >
-              Writers
+              Authors
             </button>
-            <button
-              type="button"
-              onClick={() => handleNavigate(user ? '/profile' : '/auth')}
-              className="flex w-full items-center justify-between rounded-2xl bg-[#f7f8ff] px-4 py-3 text-left text-sm font-semibold text-slate-700 transition hover:bg-[#f3f1ff] hover:text-[#702ae1]"
-            >
-              {user ? 'Profile' : 'Login'}
-            </button>
+              <button
+                type="button"
+                onClick={() => handleNavigate(user ? '/profile' : '/auth', user ? undefined : { state: { mode: 'login' } })}
+                className="flex w-full cursor-pointer items-center justify-between rounded-2xl bg-[#f7f8ff] px-4 py-3 text-left text-sm font-semibold text-slate-700 transition hover:bg-[#f3f1ff] hover:text-[#702ae1]"
+              >
+                {user ? 'Profile' : 'Sign In'}
+              </button>
+            {!user ? (
+              <button
+                type="button"
+                onClick={() => handleNavigate('/auth', { state: { mode: 'signup' } })}
+                className="flex w-full cursor-pointer items-center justify-between rounded-2xl bg-[#f7f8ff] px-4 py-3 text-left text-sm font-semibold text-slate-700 transition hover:bg-[#f3f1ff] hover:text-[#702ae1]"
+              >
+                Create Account
+              </button>
+            ) : null}
           </div>
 
           <div className="mt-auto rounded-[1.75rem] bg-[linear-gradient(135deg,#702ae1,#57d2d0)] p-5 text-white shadow-[0_24px_60px_rgba(112,42,225,0.18)]">
-            <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-white/72">Writer tools</p>
+            <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-white/72">Account access</p>
             <p className="mt-3 font-[Manrope] text-2xl font-extrabold tracking-[-0.04em]">
-              {writerToken ? 'Open dashboard' : 'Start writing'}
+              {canAccessWriterDashboard ? 'Open dashboard' : user ? 'Become an author' : 'Access your account'}
             </p>
             <p className="mt-3 text-sm leading-7 text-white/84">
-              Jump into the writer space to publish stories, manage comments, and grow your presence.
+              {user
+                ? 'Use your existing account to unlock the author dashboard when you are ready to publish.'
+                : 'Start from one shared access flow, then continue as a normal user or author.'}
             </p>
-            <button
-              type="button"
-              onClick={() => handleNavigate('/writer')}
-              className="mt-5 rounded-full bg-white px-5 py-3 text-sm font-bold text-[#702ae1] shadow-[0_18px_34px_rgba(16,20,38,0.16)]"
-            >
-              {writerToken ? 'Dashboard' : 'Writer'}
-            </button>
+            {user ? (
+              <button
+                type="button"
+                onClick={() => handleNavigate('/writer')}
+                className="mt-5 rounded-full bg-white px-5 py-3 text-sm font-bold text-[#702ae1] shadow-[0_18px_34px_rgba(16,20,38,0.16)]"
+              >
+                {canAccessWriterDashboard ? 'Dashboard' : 'Become Author'}
+              </button>
+            ) : (
+              <div className="mt-5 flex gap-3">
+                <button
+                  type="button"
+                  onClick={() => handleNavigate('/auth', { state: { mode: 'login' } })}
+                  className="cursor-pointer rounded-full bg-white px-5 py-3 text-sm font-bold text-[#702ae1] shadow-[0_18px_34px_rgba(16,20,38,0.16)]"
+                >
+                  Sign In
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleNavigate('/auth', { state: { mode: 'signup' } })}
+                  className="cursor-pointer rounded-full border border-white/70 px-5 py-3 text-sm font-bold text-white"
+                >
+                  Create Account
+                </button>
+              </div>
+            )}
           </div>
         </aside>
       </div>

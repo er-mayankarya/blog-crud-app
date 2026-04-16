@@ -3,7 +3,6 @@ import jwt from 'jsonwebtoken';
 import Blog from '../models/Blog.js';
 import Comment from '../models/Comment.js';
 import User from '../models/User.js';
-import Writer from '../models/Writer.js';
 
 const hashPassword = (password) => {
     const salt = crypto.randomBytes(16).toString('hex');
@@ -17,8 +16,18 @@ const verifyPassword = (password, storedPassword) => {
     return crypto.timingSafeEqual(Buffer.from(hash, 'hex'), Buffer.from(originalHash, 'hex'));
 };
 
+const isAuthorAccount = (user) => user?.accountType === 'author';
+
 const createUserToken = (user) => jwt.sign(
-    { userId: user._id, email: user.email, mobile: user.mobile, role: 'user' },
+    {
+        userId: user._id,
+        name: user.name,
+        email: user.email,
+        mobile: user.mobile,
+        username: user.username || null,
+        accountType: user.accountType,
+        isAuthor: isAuthorAccount(user)
+    },
     process.env.JWT_SECRET
 );
 
@@ -27,6 +36,11 @@ const sanitizeUser = (user) => ({
     name: user.name,
     email: user.email,
     mobile: user.mobile,
+    accountType: user.accountType,
+    isAuthor: isAuthorAccount(user),
+    username: user.username || null,
+    description: user.description || '',
+    authorSince: user.authorSince || null,
     savedBlogs: user.savedBlogs,
     likedBlogs: user.likedBlogs,
     dislikedBlogs: user.dislikedBlogs,
@@ -59,8 +73,8 @@ const buildProfilePayload = async (user) => {
             })
             .sort({ createdAt: -1 })
             .lean(),
-        Writer.find({ _id: { $in: user.followingWriters || [] } })
-            .select('name username description createdAt')
+        User.find({ _id: { $in: user.followingWriters || [] }, accountType: 'author' })
+            .select('name username description createdAt accountType authorSince')
             .lean()
     ]);
 
@@ -83,9 +97,9 @@ const buildProfilePayload = async (user) => {
 
 export const signupUser = async (req, res) => {
     try {
-        const { name, email, mobile, password } = req.body;
+        const { name, username, email, mobile, password } = req.body;
 
-        if (!name || !email || !mobile || !password) {
+        if (!name || !username || !email || !mobile || !password) {
             return res.json({ success: false, message: "All fields are required" });
         }
 
@@ -95,16 +109,18 @@ export const signupUser = async (req, res) => {
 
         const normalizedEmail = email.trim().toLowerCase();
         const normalizedMobile = mobile.trim();
+        const normalizedUsername = username.trim().toLowerCase();
         const existingUser = await User.findOne({
-            $or: [{ email: normalizedEmail }, { mobile: normalizedMobile }]
+            $or: [{ email: normalizedEmail }, { mobile: normalizedMobile }, { username: normalizedUsername }]
         });
 
         if (existingUser) {
-            return res.json({ success: false, message: "User already exists with this email or mobile number" });
+            return res.json({ success: false, message: "User already exists with this email, mobile number, or username" });
         }
 
         const user = await User.create({
             name: name.trim(),
+            username: normalizedUsername,
             email: normalizedEmail,
             mobile: normalizedMobile,
             password: hashPassword(password)
@@ -125,14 +141,22 @@ export const signupUser = async (req, res) => {
 
 export const loginUser = async (req, res) => {
     try {
-        const { email, password } = req.body;
+        const { login, email, password } = req.body;
+        const loginValue = login || email;
 
-        if (!email || !password) {
-            return res.json({ success: false, message: "Email and password are required" });
+        if (!loginValue || !password) {
+            return res.json({ success: false, message: "Email, username, or mobile number and password are required" });
         }
 
-        const normalizedEmail = email.trim().toLowerCase();
-        const user = await User.findOne({ email: normalizedEmail });
+        const trimmedLogin = loginValue.trim();
+        const normalizedLogin = trimmedLogin.toLowerCase();
+        const user = await User.findOne({
+            $or: [
+                { email: normalizedLogin },
+                { username: normalizedLogin },
+                { mobile: trimmedLogin }
+            ]
+        });
 
         if (!user || !verifyPassword(password, user.password)) {
             return res.json({ success: false, message: "Invalid credentials" });
@@ -270,7 +294,7 @@ export const toggleFollowWriter = async (req, res) => {
 
         const [user, writer] = await Promise.all([
             User.findById(req.user.userId),
-            Writer.findById(writerId)
+            User.findOne({ _id: writerId, accountType: 'author' })
         ]);
 
         if (!user) {
@@ -294,11 +318,64 @@ export const toggleFollowWriter = async (req, res) => {
             success: true,
             message: isFollowing ? 'Writer unfollowed successfully' : 'Writer followed successfully',
             user: {
+                accountType: user.accountType,
+                isAuthor: isAuthorAccount(user),
+                username: user.username || null,
+                description: user.description || '',
+                authorSince: user.authorSince || null,
                 followingWriters: user.followingWriters,
                 savedBlogs: user.savedBlogs,
                 likedBlogs: user.likedBlogs,
                 dislikedBlogs: user.dislikedBlogs
             }
+        });
+    } catch (error) {
+        res.json({ success: false, message: error.message });
+    }
+};
+
+export const becomeAuthor = async (req, res) => {
+    try {
+        const { description, consent } = req.body;
+
+        if (!consent) {
+            return res.json({ success: false, message: 'You must consent before becoming an author' });
+        }
+
+        const user = await User.findById(req.user.userId);
+
+        if (!user) {
+            return res.status(404).json({ success: false, message: 'User not found' });
+        }
+
+        const normalizedUsername = (user.username || '').trim().toLowerCase();
+
+        if (!normalizedUsername) {
+            return res.json({ success: false, message: 'Username is required' });
+        }
+
+        const existingAuthor = await User.findOne({
+            _id: { $ne: req.user.userId },
+            username: normalizedUsername
+        });
+
+        if (existingAuthor) {
+            return res.json({ success: false, message: 'Username is already taken' });
+        }
+
+        user.accountType = 'author';
+        user.username = normalizedUsername;
+        user.description = description?.trim() || '';
+        user.authorSince = user.authorSince || new Date();
+        await user.save();
+
+        const token = createUserToken(user);
+
+        res.json({
+            success: true,
+            message: 'Author profile created successfully',
+            token,
+            user: sanitizeUser(user)
         });
     } catch (error) {
         res.json({ success: false, message: error.message });

@@ -21,7 +21,7 @@ import { useAppContext } from "./context/useAppContext.js"
 
 function App() {
 
-  const {writerToken} = useAppContext()
+  const {canAccessWriterDashboard} = useAppContext()
   
 
   return (
@@ -37,7 +37,7 @@ function App() {
         <Route path="/writers" element={<Writers />} />
         <Route path="/writers/:username" element={<WriterDetails />} />
         <Route path="/writers/id/:writerId" element={<WriterDetails />} />
-        <Route path='/writer' element={writerToken ? <WriterLayout />: <WriterAuth/>}> 
+        <Route path='/writer' element={canAccessWriterDashboard ? <WriterLayout />: <WriterAuth/>}> 
         <Route index element={<WriterDashboard/>}/>
         <Route path='profile' element={<WriterProfile/>}/>
         <Route path='addBlog' element={<WriterAddBlog/>}/>

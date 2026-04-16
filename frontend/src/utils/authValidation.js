@@ -21,6 +21,10 @@ export const validateReaderAuth = (mode, formData) => {
       errors.name = 'Enter a valid full name';
     }
 
+    if (!USERNAME_REGEX.test(formData.username.trim().toLowerCase())) {
+      errors.username = 'Use 3-20 letters, numbers, dots, dashes, or underscores';
+    }
+
     if (!hasValidPhone(formData.mobile)) {
       errors.mobile = 'Enter a valid mobile number';
     }
@@ -28,11 +32,17 @@ export const validateReaderAuth = (mode, formData) => {
     if (!hasStrongEnoughPassword(formData.password)) {
       errors.password = 'Password must be at least 6 characters';
     }
-  } else if (!formData.password.trim()) {
-    errors.password = 'Password is required';
+  } else {
+    if (!formData.login?.trim()) {
+      errors.login = 'Email, username, or mobile number is required';
+    }
+
+    if (!formData.password.trim()) {
+      errors.password = 'Password is required';
+    }
   }
 
-  if (!hasValidEmail(formData.email)) {
+  if (mode === 'signup' && !hasValidEmail(formData.email)) {
     errors.email = 'Enter a valid email address';
   }
 

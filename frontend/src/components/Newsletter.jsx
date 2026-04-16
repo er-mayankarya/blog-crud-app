@@ -83,9 +83,9 @@ const Newsletter = ({ containerClassName = '' }) => {
               <button
                 type="button"
                 onClick={() => navigate('/auth')}
-                className="text-left font-semibold text-[#702ae1] transition hover:text-[#5521b0]"
+                className="cursor-pointer text-left font-semibold text-[#702ae1] transition hover:text-[#5521b0]"
               >
-                Already a reader? Sign in
+                Sign In or Create Account
               </button>
             </div>
           </div>

@@ -31,6 +31,15 @@ const mergeUserPayload = (currentUser, payload) => {
   };
 };
 
+const syncAuthorShape = (account) => {
+  if (!account?.isAuthor) return null;
+
+  return {
+    ...account,
+    phone: account.mobile || account.phone || '',
+  };
+};
+
 export const AppProvider = ({children})=>{
 
   const navigate = useNavigate()
@@ -60,37 +69,48 @@ export const AppProvider = ({children})=>{
     }
   }, [])
 
-  const setWriterSession = (token, writerData = null) => {
-    localStorage.setItem(WRITER_TOKEN_STORAGE_KEY, token)
-    setWriterToken(token)
-    setWriter(writerData)
-    setWriterProfile(null)
-    applyAuthToken(writerAxios, token)
-  }
-
-  const logoutWriter = () => {
+  const clearWriterSession = useCallback(() => {
     localStorage.removeItem(WRITER_TOKEN_STORAGE_KEY)
     setWriterToken(null)
     setWriter(null)
     setWriterProfile(null)
     applyAuthToken(writerAxios, null)
-  }
+  }, [])
 
-  const setUserSession = (token, userData) => {
+  const setWriterSession = useCallback((token, writerData = null) => {
+    localStorage.setItem(WRITER_TOKEN_STORAGE_KEY, token)
+    setWriterToken(token)
+    setWriter(syncAuthorShape(writerData))
+    setWriterProfile(null)
+    applyAuthToken(writerAxios, token)
+  }, [])
+
+  const setUserSession = useCallback((token, userData) => {
     localStorage.setItem(USER_TOKEN_STORAGE_KEY, token)
     setUserToken(token)
     setUser(userData)
     setUserProfile(null)
     applyAuthToken(userAxios, token)
-  }
 
-  const logoutUser = () => {
+    if (userData?.isAuthor) {
+      setWriterSession(token, userData)
+    } else {
+      clearWriterSession()
+    }
+  }, [clearWriterSession, setWriterSession])
+
+  const logoutUser = useCallback(() => {
     localStorage.removeItem(USER_TOKEN_STORAGE_KEY)
     setUserToken(null)
     setUser(null)
     setUserProfile(null)
     applyAuthToken(userAxios, null)
-  }
+    clearWriterSession()
+  }, [clearWriterSession])
+
+  const logoutWriter = useCallback(() => {
+    logoutUser()
+  }, [logoutUser])
 
   const fetchCurrentUser = useCallback(async () => {
     try {
@@ -101,10 +121,24 @@ export const AppProvider = ({children})=>{
       }
 
       setUser(data.user)
+
+      if (data.user?.isAuthor) {
+        setWriterToken((currentToken) => {
+          const activeToken = currentToken || localStorage.getItem(USER_TOKEN_STORAGE_KEY)
+          if (activeToken) {
+            localStorage.setItem(WRITER_TOKEN_STORAGE_KEY, activeToken)
+            applyAuthToken(writerAxios, activeToken)
+          }
+          return activeToken
+        })
+        setWriter(syncAuthorShape(data.user))
+      } else {
+        clearWriterSession()
+      }
     } catch {
       logoutUser()
     }
-  }, [])
+  }, [clearWriterSession, logoutUser])
 
   useEffect(()=>{
     fetchBlogs();
@@ -136,10 +170,10 @@ export const AppProvider = ({children})=>{
       throw new Error(data.message)
     }
 
-    setWriter(data.profile.writer)
+    setWriter(syncAuthorShape(data.profile.writer))
     setWriterProfile(data.profile)
     return data.profile
-  }, [])
+  }, [logoutWriter])
 
   useEffect(() => {
     if (writerToken) {
@@ -233,7 +267,7 @@ export const AppProvider = ({children})=>{
     setUser(data.profile.user)
     setUserProfile(data.profile)
     return data.profile
-  }, [])
+  }, [setUserSession])
 
   const updateUserPassword = useCallback(async (payload) => {
     const { data } = await userAxios.post('/api/user/update-password', payload)
@@ -243,7 +277,7 @@ export const AppProvider = ({children})=>{
     }
 
     return data.message
-  }, [])
+  }, [setUserSession])
 
   const verifyResetEmail = useCallback(async (email) => {
     const { data } = await api.post('/api/user/verify-reset-email', { email })
@@ -253,7 +287,7 @@ export const AppProvider = ({children})=>{
     }
 
     return data.message
-  }, [])
+  }, [setUserSession])
 
   const resetPassword = useCallback(async (payload) => {
     const { data } = await api.post('/api/user/reset-password', payload)
@@ -272,7 +306,7 @@ export const AppProvider = ({children})=>{
       throw new Error(data.message)
     }
 
-    setWriterSession(data.token, data.writer)
+    setUserSession(data.token, data.writer)
     return data.writer
   }, [])
 
@@ -283,7 +317,7 @@ export const AppProvider = ({children})=>{
       throw new Error(data.message)
     }
 
-    setWriterSession(data.token, data.writer)
+    setUserSession(data.token, data.writer)
     return data.writer
   }, [])
 
@@ -317,6 +351,17 @@ export const AppProvider = ({children})=>{
     return data.message
   }, [])
 
+  const becomeAuthor = useCallback(async (payload) => {
+    const { data } = await userAxios.post('/api/user/become-author', payload)
+
+    if (!data.success) {
+      throw new Error(data.message)
+    }
+
+    setUserSession(data.token, data.user)
+    return data.user
+  }, [])
+
   const bookmarkedBlogIds = user?.savedBlogs?.map((blogId) => blogId.toString()) || []
   const followingWriterIds = user?.followingWriters?.map((writerId) => writerId.toString()) || []
   const blogReactions = blogs.reduce((acc, blog) => {
@@ -332,6 +377,8 @@ export const AppProvider = ({children})=>{
 
     return acc
   }, {})
+
+  const canAccessWriterDashboard = Boolean(writerToken || user?.isAuthor)
 
   const value ={
     api,
@@ -349,6 +396,7 @@ export const AppProvider = ({children})=>{
     updateWriterPassword,
     verifyWriterReset,
     resetWriterPassword,
+    becomeAuthor,
     userToken,
     user,
     userProfile,
@@ -366,6 +414,7 @@ export const AppProvider = ({children})=>{
     bookmarkedBlogIds,
     followingWriterIds,
     blogReactions,
+    canAccessWriterDashboard,
     updateBlogInState,
     toggleReaction,
     toggleBookmark,

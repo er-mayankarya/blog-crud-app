@@ -3,7 +3,7 @@ import { blogCategories } from '../assets/assets'
 import { useAppContext } from '../context/useAppContext'
 
 const Footer = ({ containerClassName = '' }) => {
-  const { blogs, user, writerToken, navigate } = useAppContext()
+  const { blogs, user, canAccessWriterDashboard, navigate } = useAppContext()
 
   const visibleCategories = useMemo(() => {
     const dynamicCategories = blogs
@@ -58,7 +58,7 @@ const Footer = ({ containerClassName = '' }) => {
           <div className="mt-4 space-y-3 text-sm text-slate-600">
             <p>{blogs.length ? `${blogs.length} live stories in the feed` : 'Waiting for the first published story'}</p>
             <p>{user ? `Signed in as ${user.name}` : 'Reader account not connected'}</p>
-            <p>{writerToken ? 'Writer dashboard available' : 'Writer mode not active'}</p>
+            <p>{canAccessWriterDashboard ? 'Author dashboard available' : 'Author mode not active'}</p>
           </div>
         </div>
       </div>
