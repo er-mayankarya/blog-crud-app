@@ -45,6 +45,11 @@ export const addBlog = async (req, res) => {
     try {
         const { title, subTitle, description, category, isPublished } = JSON.parse(req.body.blog)
         const imageFile = req.file;
+        const writerId = req.writer?.writerId || req.writer?.userId;
+
+        if (!writerId) {
+            return res.status(403).json({ success: false, message: "Author access required" });
+        }
 
         if (!title || !subTitle || !description || !category || !imageFile) {
             return res.json({ success: false, message: "Missing required fields" })
@@ -72,8 +77,8 @@ export const addBlog = async (req, res) => {
 
         const image = optimizedImageUrl;
 
-        await Blog.create({
-            writer: req.writer?.writerId,
+        const blog = await Blog.create({
+            writer: writerId,
             writerName: req.writer?.name,
             writerUsername: req.writer?.username,
             title,
@@ -84,7 +89,7 @@ export const addBlog = async (req, res) => {
             isPublished
         });
 
-        res.json({ success: true, message: "Blog added successfully" });
+        res.json({ success: true, message: "Blog added successfully", blog });
 
 
     } catch (error) {

@@ -21,6 +21,7 @@ const isAuthorAccount = (user) => user?.accountType === 'author';
 const createUserToken = (user) => jwt.sign(
     {
         userId: user._id,
+        writerId: isAuthorAccount(user) ? user._id : undefined,
         name: user.name,
         email: user.email,
         mobile: user.mobile,

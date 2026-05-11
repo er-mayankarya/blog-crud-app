@@ -19,8 +19,13 @@ const auth = (req, res, next) => {
             return res.status(403).json({ success: false, message: "Author access required" });
         }
 
-        req.writer = decoded;
-        req.user = decoded;
+        const authenticatedAuthor = {
+            ...decoded,
+            writerId: decoded.writerId || decoded.userId
+        };
+
+        req.writer = authenticatedAuthor;
+        req.user = authenticatedAuthor;
         next();
     } catch (error) {
         res.status(401).json({ success: false, message: "Unauthorized access" });
